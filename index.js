@@ -6,6 +6,7 @@ const puppeteer = require('puppeteer');
 const UserNameVar = process.env.studentID;
 const UserPassVar = process.env.ssoPassword;
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
+let remainElec = null;
 async function runAutomation() {
     // 以下为查询电费的脚本
 
@@ -50,7 +51,7 @@ async function runAutomation() {
 
         console.log('开始查询...');
 
-        const remainElec = await page.evaluate(async (area,district,building, floor, room) => {
+        remainElec = await page.evaluate(async (area,district,building, floor, room) => {
 
             const setAndDispatch = (elementId, value) => {
                 const element = document.getElementById(elementId);
@@ -116,7 +117,55 @@ async function runAutomation() {
         await browser.close();
     }
     // 以下为自动发送邮件的脚本
+    // 检查是否成功获取了电量值
+    if (remainElec === null || remainElec === undefined) {
+        console.log("未能获取电量值，跳过邮件发送。");
+        return;
+    }
 
+    const ALERT_THRESHOLD = 7; // 设置电量提醒阈值为 7 度
+    const currentBalance = parseFloat(remainElec); // 将获取到的字符串转换为数字
+
+    // 2. 判断电量是否低于阈值
+    if (currentBalance < ALERT_THRESHOLD) {
+        console.log(`当前电量 ${currentBalance} 度，低于警戒值 ${ALERT_THRESHOLD} 度，准备发送邮件...`);
+
+        // 3. 使用 Nodemailer 发送邮件
+        try {
+            const transporter = nodemailer.createTransport({
+                host: process.env.EMAIL_HOST,
+                port: parseInt(process.env.EMAIL_PORT, 10),
+                secure: process.env.EMAIL_SECURE === 'true',
+                auth: {
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.EMAIL_PASS,
+                },
+            });
+
+            const mailOptions = {
+                from: `"宿舍电量提醒" <${process.env.EMAIL_USER}>`,
+                to: process.env.EMAIL_TO,
+                subject: '🚨 低电量提醒！',
+                html: `
+                    <h1>该交电费啦！</h1>
+                    <p>你好,</p>
+                    <p>宿舍当前电量仅剩 <strong>${currentBalance.toFixed(2)} 度</strong>，已低于 ${ALERT_THRESHOLD} 度的警戒线。</p>
+                    <p>请尽快充值，以免影响正常生活！</p>
+                    <hr>
+                    <p><i>此邮件由您的 Node.js 自动化脚本发送。</i></p>
+                `,
+            };
+
+            const info = await transporter.sendMail(mailOptions);
+            console.log('邮件发送成功! Message ID:', info.messageId);
+
+        } catch (mailError) {
+            console.error('邮件发送失败:', mailError);
+        }
+
+    } else {
+        console.log(`当前电量 ${currentBalance} 度，电量充足，无需发送邮件。`);
+    }
 }
 
 runAutomation();
