@@ -1,13 +1,13 @@
 require('dotenv').config();
 const puppeteer = require('puppeteer');
-// const nodemailer = require('nodemailer');
-// const cron = require('node-cron');
+const nodemailer = require('nodemailer');
+const cron = require('node-cron');
 
 const UserNameVar = process.env.studentID;
 const UserPassVar = process.env.ssoPassword;
 const delay = (ms) => new Promise(res => setTimeout(res, ms));
 let remainElec = null;
-async function runAutomation() {
+async function checkBalanceAndNotify() {
     // 以下为查询电费的脚本
 
     const browser = await puppeteer.launch({ headless: 'new' }); // 在后台运行
@@ -124,13 +124,13 @@ async function runAutomation() {
     }
 
     const ALERT_THRESHOLD = 7; // 设置电量提醒阈值为 7 度
-    const currentBalance = parseFloat(remainElec); // 将获取到的字符串转换为数字
+    const currentBalance = parseFloat(remainElec);
 
-    // 2. 判断电量是否低于阈值
+    // 判断电量是否低于阈值
     if (currentBalance < ALERT_THRESHOLD) {
         console.log(`当前电量 ${currentBalance} 度，低于警戒值 ${ALERT_THRESHOLD} 度，准备发送邮件...`);
 
-        // 3. 使用 Nodemailer 发送邮件
+        // 使用 Nodemailer 发送邮件
         try {
             const transporter = nodemailer.createTransport({
                 host: process.env.EMAIL_HOST,
@@ -168,4 +168,15 @@ async function runAutomation() {
     }
 }
 
-runAutomation();
+checkBalanceAndNotify();
+
+const schedule = '1 6 * * *';
+
+console.log('电量自动提醒服务已启动。');
+console.log(`将按照计划 [${schedule}] 执行任务。`);
+console.log(`当前时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`);
+
+cron.schedule(schedule, checkBalanceAndNotify, {
+    scheduled: true,
+    timezone: "Asia/Shanghai"
+});
