@@ -1,0 +1,19 @@
+{
+  "name": "dormelec",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "private": true,
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^7.0.5",
+    "puppeteer": "^24.15.0"
+  },
+  "keywords": [],
+  "author": "RoddySu",
+  "license": "ISC",
+  "description": ""
+}
